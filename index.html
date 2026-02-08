@@ -1,0 +1,2730 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BTC Quantum Scanner | 量子级地址匹配系统</title>
+    <style>
+        /* ==================== 全局样式 ==================== */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a23 30%, #0f0f15 70%, #050508 100%);
+            color: #f0f0f0;
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 10px;
+            overflow-x: hidden;
+            position: relative;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(120, 119, 198, 0.03) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(255, 204, 0, 0.02) 0%, transparent 50%),
+                radial-gradient(circle at 40% 80%, rgba(100, 100, 255, 0.02) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+        
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 15px;
+        }
+        
+        /* ==================== 头部样式 ==================== */
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 25px;
+            position: relative;
+        }
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            height: 2px;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                rgba(255, 204, 0, 0.8) 50%, 
+                transparent 100%);
+        }
+        .header h1 {
+            font-size: 3.2rem;
+            font-weight: 900;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, 
+                #ffffff 0%, 
+                #e6e6e6 25%, 
+                #cccccc 50%, 
+                #b3b3b3 75%, 
+                #999999 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+        .header h1::before {
+            content: '⚡';
+            position: absolute;
+            left: -40px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 2.5rem;
+            color: #ffcc00;
+        }
+        .header h1::after {
+            content: '⚡';
+            position: absolute;
+            right: -40px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 2.5rem;
+            color: #ffcc00;
+        }
+        .header .subtitle {
+            font-size: 1.1rem;
+            color: #aaa;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            font-weight: 300;
+            margin-top: 15px;
+            opacity: 0.9;
+        }
+        
+        /* ==================== API选择器模态框 ==================== */
+        .api-selector-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(5, 5, 8, 0.95);
+            z-index: 10000;
+            backdrop-filter: blur(10px);
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .api-selector-content {
+            background: linear-gradient(145deg, rgba(20, 20, 30, 0.98) 0%, rgba(30, 30, 40, 0.98) 100%);
+            border: 2px solid rgba(255, 204, 0, 0.3);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 800px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.8);
+            animation: modalFadeIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: scale(0.9) translateY(20px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        
+        .api-selector-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .api-selector-header h3 {
+            color: #ffcc00;
+            font-size: 1.8rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+        
+        .api-selector-header p {
+            color: #aaa;
+            font-size: 1rem;
+            line-height: 1.5;
+        }
+        
+        .api-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .api-option {
+            background: linear-gradient(135deg, rgba(30, 30, 40, 0.9) 0%, rgba(40, 40, 50, 0.9) 100%);
+            border: 1px solid rgba(80, 80, 100, 0.4);
+            border-radius: 16px;
+            padding: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .api-option:hover {
+            transform: translateY(-5px);
+            border-color: rgba(255, 204, 0, 0.5);
+            box-shadow: 0 15px 40px rgba(255, 204, 0, 0.1);
+        }
+        
+        .api-option.selected {
+            border-color: #00ff88;
+            background: linear-gradient(135deg, rgba(30, 40, 35, 0.9) 0%, rgba(40, 50, 45, 0.9) 100%);
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.2);
+        }
+        
+        .api-option-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+        
+        .api-name {
+            color: #ffcc00;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+        
+        .api-status {
+            font-size: 0.9rem;
+            font-weight: 700;
+            padding: 5px 12px;
+            border-radius: 20px;
+        }
+        
+        .api-status.online {
+            color: #00ff88;
+            background: rgba(0, 255, 136, 0.1);
+        }
+        
+        .api-status.offline {
+            color: #ff3366;
+            background: rgba(255, 51, 102, 0.1);
+        }
+        
+        .api-status.testing {
+            color: #ffcc00;
+            background: rgba(255, 204, 0, 0.1);
+        }
+        
+        .api-endpoint {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.85rem;
+            color: #8bb9ff;
+            word-break: break-all;
+            margin-bottom: 15px;
+            line-height: 1.4;
+        }
+        
+        .api-latency {
+            font-size: 0.9rem;
+            color: #aaa;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .latency-value {
+            color: #ffcc00;
+            font-weight: 700;
+        }
+        
+        .api-selector-footer {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 1px solid rgba(80, 80, 100, 0.3);
+        }
+        
+        .btn-select-api {
+            background: linear-gradient(135deg, #00a86b 0%, #00cc88 100%);
+            color: white;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 180px;
+        }
+        
+        .btn-select-api:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0, 204, 136, 0.3);
+        }
+        
+        .btn-cancel-api {
+            background: linear-gradient(135deg, #666666 0%, #888888 100%);
+            color: white;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 180px;
+        }
+        
+        .btn-cancel-api:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(102, 102, 102, 0.3);
+        }
+        
+        /* ==================== 输入地址面板 ==================== */
+        .input-panel {
+            background: linear-gradient(145deg, rgba(15, 15, 20, 0.95) 0%, rgba(25, 25, 35, 0.95) 100%);
+            border: 1px solid rgba(80, 80, 100, 0.3);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 
+                0 10px 40px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            position: relative;
+            overflow: hidden;
+        }
+        .input-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                rgba(255, 204, 0, 0.3) 50%, 
+                transparent 100%);
+        }
+        
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 25px;
+        }
+        .panel-header h3 {
+            color: #ffcc00;
+            font-size: 1.4rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            letter-spacing: 1px;
+        }
+        .panel-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, rgba(255, 204, 0, 0.2) 0%, rgba(255, 170, 0, 0.2) 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: #ffcc00;
+            box-shadow: 0 4px 15px rgba(255, 204, 0, 0.2);
+        }
+        
+        .input-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+        
+        .input-textarea {
+            width: 100%;
+            min-height: 180px;
+            padding: 20px;
+            background: linear-gradient(135deg, rgba(20, 20, 28, 0.9) 0%, rgba(30, 30, 38, 0.9) 100%);
+            border: 2px solid rgba(60, 60, 70, 0.6);
+            border-radius: 12px;
+            color: #f0f0f0;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            resize: vertical;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+        .input-textarea:focus {
+            border-color: #ffcc00;
+            box-shadow: 0 0 0 3px rgba(255, 204, 0, 0.2);
+        }
+        .input-textarea::placeholder {
+            color: #666;
+        }
+        
+        .input-count {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 15px;
+            font-size: 0.95rem;
+            color: #aaa;
+        }
+        .input-count .count {
+            color: #ffcc00;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+        
+        .input-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .btn {
+            padding: 18px 35px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+            min-width: 160px;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.15), 
+                transparent);
+            transition: left 0.7s ease;
+        }
+        .btn:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+        }
+        .btn:hover::before {
+            left: 100%;
+        }
+        .btn:active {
+            transform: translateY(-2px);
+        }
+        
+        .btn-detect {
+            background: linear-gradient(135deg, #0066cc 0%, #0088ff 100%);
+            color: white;
+        }
+        .btn-clear {
+            background: linear-gradient(135deg, #666666 0%, #888888 100%);
+            color: white;
+        }
+        
+        /* ==================== 目标地址网格 ==================== */
+        .target-grid {
+            background: linear-gradient(145deg, rgba(15, 15, 20, 0.95) 0%, rgba(25, 25, 35, 0.95) 100%);
+            border: 1px solid rgba(80, 80, 100, 0.3);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 
+                0 10px 40px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            position: relative;
+            overflow: hidden;
+        }
+        .target-grid::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                rgba(255, 204, 0, 0.3) 50%, 
+                transparent 100%);
+        }
+        
+        .target-addresses-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+        
+        .target-address-group {
+            background: linear-gradient(135deg, rgba(30, 30, 40, 0.8) 0%, rgba(40, 40, 50, 0.8) 100%);
+            border: 1px solid rgba(60, 60, 70, 0.5);
+            border-radius: 15px;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+        .target-address-group:hover {
+            border-color: rgba(255, 204, 0, 0.4);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(255, 204, 0, 0.1);
+        }
+        
+        .address-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 15px;
+            margin-bottom: 12px;
+            background: rgba(20, 20, 25, 0.7);
+            border: 1px solid rgba(50, 50, 60, 0.4);
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+        .address-item:hover {
+            background: rgba(30, 30, 35, 0.8);
+            border-color: rgba(255, 204, 0, 0.3);
+        }
+        .address-info {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .address-index {
+            width: 30px;
+            height: 30px;
+            background: linear-gradient(135deg, rgba(255, 204, 0, 0.1) 0%, rgba(255, 170, 0, 0.1) 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: #ffcc00;
+            font-size: 0.9rem;
+        }
+        .address-text {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.85rem;
+            color: #8bb9ff;
+            flex: 1;
+            word-break: break-all;
+            font-weight: 500;
+        }
+        
+        .address-balance {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-weight: 700;
+            min-width: 130px;
+            text-align: right;
+            padding-left: 15px;
+        }
+        .balance-waiting {
+            color: #888;
+        }
+        .balance-zero {
+            color: #aaa;
+        }
+        .balance-positive {
+            color: #00ff88;
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+            font-weight: 800;
+        }
+        .balance-checking {
+            color: #ffcc00;
+        }
+        
+        /* ==================== 控制面板 ==================== */
+        .control-panel {
+            background: linear-gradient(145deg, rgba(15, 15, 20, 0.98) 0%, rgba(25, 25, 35, 0.98) 100%);
+            border: 1px solid rgba(80, 80, 100, 0.3);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 
+                0 10px 40px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            position: relative;
+        }
+        
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 30px;
+            justify-content: center;
+        }
+        
+        .btn-start {
+            background: linear-gradient(135deg, #00a86b 0%, #00cc88 100%);
+            color: white;
+        }
+        .btn-pause {
+            background: linear-gradient(135deg, #ff3366 0%, #ff5588 100%);
+            color: white;
+        }
+        .btn-stop {
+            background: linear-gradient(135deg, #8a3ffc 0%, #a56eff 100%);
+            color: white;
+        }
+        .btn-stats {
+            background: linear-gradient(135deg, #ff9900 0%, #ffcc00 100%);
+            color: #0a0a0a;
+        }
+        .btn-export {
+            background: linear-gradient(135deg, #0066cc 0%, #0088ff 100%);
+            color: white;
+        }
+        .btn-reconnect {
+            background: linear-gradient(135deg, #6633cc 0%, #8866ff 100%);
+            color: white;
+        }
+        
+        /* ==================== 速度控制 ==================== */
+        .speed-control {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 1px solid rgba(80, 80, 100, 0.3);
+        }
+        .speed-control label {
+            display: block;
+            margin-bottom: 20px;
+            color: #ffcc00;
+            font-weight: 700;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            letter-spacing: 1px;
+        }
+        .speed-control label::before {
+            content: '⚡';
+            font-size: 1.4rem;
+            animation: speedPulse 2s infinite;
+        }
+        @keyframes speedPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .speed-slider-container {
+            position: relative;
+            margin-bottom: 25px;
+            padding: 0 10px;
+        }
+        .speed-slider {
+            width: 100%;
+            height: 14px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: linear-gradient(90deg, 
+                #333344 0%, 
+                #444455 30%, 
+                #666677 70%, 
+                #888899 100%);
+            border-radius: 7px;
+            outline: none;
+            cursor: pointer;
+            position: relative;
+            z-index: 1;
+            border: 1px solid rgba(100, 100, 120, 0.5);
+        }
+        .speed-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ffcc00 0%, #ffaa00 100%);
+            cursor: pointer;
+            border: 3px solid #ffffff;
+            box-shadow: 
+                0 0 20px rgba(255, 204, 0, 0.8),
+                0 0 40px rgba(255, 204, 0, 0.4);
+            transition: all 0.2s ease;
+        }
+        .speed-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+            box-shadow: 
+                0 0 25px rgba(255, 204, 0, 1),
+                0 0 50px rgba(255, 204, 0, 0.6);
+        }
+        
+        .speed-value-display {
+            position: absolute;
+            top: -45px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-weight: 900;
+            font-size: 1.5rem;
+            color: #ffcc00;
+            text-shadow: 0 0 15px rgba(255, 204, 0, 0.5);
+            pointer-events: none;
+            z-index: 2;
+            font-family: 'Consolas', 'Monaco', monospace;
+            letter-spacing: 1px;
+        }
+        
+        .speed-markers {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            padding: 0 5px;
+        }
+        .speed-marker {
+            font-size: 0.8rem;
+            color: #888;
+            font-weight: 500;
+            transform: rotate(-45deg);
+            transform-origin: left center;
+            margin-top: 5px;
+        }
+        
+        /* ==================== 状态显示 ==================== */
+        .status-display {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        .status-card {
+            background: linear-gradient(135deg, rgba(25, 25, 35, 0.9) 0%, rgba(35, 35, 45, 0.9) 100%);
+            border: 1px solid rgba(70, 70, 80, 0.4);
+            border-radius: 16px;
+            padding: 25px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .status-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #ffcc00, transparent);
+            opacity: 0.5;
+        }
+        .status-card:hover {
+            transform: translateY(-8px);
+            border-color: rgba(255, 204, 0, 0.5);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+        }
+        
+        .status-value {
+            font-size: 2.5rem;
+            font-weight: 900;
+            margin-bottom: 10px;
+            font-family: 'Consolas', 'Monaco', monospace;
+        }
+        .status-api { color: #00ff88; text-shadow: 0 0 15px rgba(0, 255, 136, 0.3); }
+        .status-generated { color: #8bb9ff; }
+        .status-attempts { color: #ff9966; }
+        .status-success { color: #00ff88; text-shadow: 0 0 15px rgba(0, 255, 136, 0.3); }
+        .status-time { color: #ffcc00; }
+        .status-speed { color: #ff66cc; }
+        
+        .status-label {
+            font-size: 0.9rem;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            font-weight: 600;
+        }
+        
+        /* ==================== 当前扫描 ==================== */
+        .current-scan {
+            background: linear-gradient(145deg, rgba(15, 15, 20, 0.98) 0%, rgba(25, 25, 35, 0.98) 100%);
+            border: 1px solid rgba(80, 80, 100, 0.3);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 
+                0 10px 40px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            position: relative;
+        }
+        
+        .scan-info {
+            background: linear-gradient(135deg, rgba(30, 30, 40, 0.9) 0%, rgba(40, 40, 50, 0.9) 100%);
+            border: 1px solid rgba(70, 70, 80, 0.4);
+            border-radius: 16px;
+            padding: 30px;
+            position: relative;
+            overflow: hidden;
+        }
+        .scan-info::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, rgba(255, 204, 0, 0.05) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        
+        .info-row {
+            display: flex;
+            margin-bottom: 25px;
+            padding-bottom: 25px;
+            border-bottom: 1px solid rgba(70, 70, 80, 0.3);
+            align-items: flex-start;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        .info-label {
+            width: 120px;
+            font-weight: 700;
+            color: #ffcc00;
+            font-size: 1rem;
+            flex-shrink: 0;
+            padding-top: 5px;
+            letter-spacing: 0.5px;
+        }
+        .info-value {
+            flex: 1;
+            word-break: break-all;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+        .mnemonic-value {
+            color: #ffcc00;
+            font-weight: 600;
+            background: rgba(255, 204, 0, 0.08);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 204, 0, 0.2);
+            line-height: 1.8;
+            font-size: 1rem;
+        }
+        .private-key-value {
+            color: #cc88ff;
+            font-weight: 500;
+            background: rgba(204, 136, 255, 0.08);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid rgba(204, 136, 255, 0.2);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        .address-value {
+            color: #8bb9ff;
+            font-weight: 500;
+            background: rgba(139, 185, 255, 0.08);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid rgba(139, 185, 255, 0.2);
+        }
+        .match-status {
+            font-size: 1.3rem;
+            font-weight: 900;
+            padding: 12px 25px;
+            border-radius: 10px;
+            display: inline-block;
+            letter-spacing: 1px;
+        }
+        .match-success {
+            color: #00ff88;
+            background: rgba(0, 255, 136, 0.1);
+            border: 2px solid rgba(0, 255, 136, 0.4);
+            animation: successPulse 2s infinite;
+        }
+        @keyframes successPulse {
+            0%, 100% { 
+                box-shadow: 0 0 15px rgba(0, 255, 136, 0.3);
+            }
+            50% { 
+                box-shadow: 0 0 25px rgba(0, 255, 136, 0.6);
+            }
+        }
+        .match-failed {
+            color: #ff3366;
+            background: rgba(255, 51, 102, 0.1);
+            border: 2px solid rgba(255, 51, 102, 0.4);
+        }
+        
+        /* ==================== 匹配结果 ==================== */
+        .match-results {
+            background: linear-gradient(145deg, rgba(15, 15, 20, 0.98) 0%, rgba(25, 25, 35, 0.98) 100%);
+            border: 2px solid rgba(0, 255, 136, 0.3);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 
+                0 10px 40px rgba(0, 0, 0, 0.5),
+                0 0 30px rgba(0, 255, 136, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            position: relative;
+        }
+        .match-results::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, transparent 30%, rgba(0, 255, 136, 0.03) 50%, transparent 70%);
+            animation: shine 3s infinite linear;
+            pointer-events: none;
+        }
+        @keyframes shine {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        /* 总余额显示 */
+        .total-balance-display {
+            background: linear-gradient(135deg, rgba(0, 255, 136, 0.1) 0%, rgba(0, 200, 100, 0.1) 100%);
+            border: 2px solid rgba(0, 255, 136, 0.4);
+            border-radius: 16px;
+            padding: 25px;
+            margin-bottom: 30px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            animation: pulse 3s infinite alternate;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 20px rgba(0, 255, 136, 0.2); }
+            100% { box-shadow: 0 0 40px rgba(0, 255, 136, 0.4); }
+        }
+        
+        .total-balance-label {
+            color: #8bb9ff;
+            font-size: 1.1rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+        
+        .total-balance-value {
+            color: #00ff88;
+            font-size: 3rem;
+            font-weight: 900;
+            font-family: 'Consolas', 'Monaco', monospace;
+            text-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+        }
+        
+        .match-item {
+            background: linear-gradient(135deg, rgba(30, 30, 40, 0.9) 0%, rgba(40, 40, 50, 0.9) 100%);
+            border: 1px solid rgba(70, 70, 80, 0.4);
+            border-radius: 16px;
+            padding: 25px;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+            animation: slideIn 0.5s ease;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .match-item:hover {
+            transform: translateY(-8px);
+            border-color: #00ff88;
+            box-shadow: 0 15px 40px rgba(0, 255, 136, 0.2);
+        }
+        
+        .match-item-header {
+            color: #00ff88;
+            font-weight: 800;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 1.2rem;
+            letter-spacing: 0.5px;
+        }
+        
+        /* ==================== 巡查面板 ==================== */
+        .patrol-panel {
+            background: linear-gradient(145deg, rgba(15, 15, 20, 0.98) 0%, rgba(25, 25, 35, 0.98) 100%);
+            border: 1px solid rgba(80, 80, 100, 0.3);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 
+                0 10px 40px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            position: relative;
+        }
+        
+        .table-container {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid rgba(70, 70, 80, 0.4);
+            border-radius: 12px;
+            background: rgba(20, 20, 25, 0.8);
+        }
+        .table-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        .table-container::-webkit-scrollbar-track {
+            background: rgba(30, 30, 35, 0.8);
+            border-radius: 4px;
+        }
+        .table-container::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #ffcc00 0%, #ffaa00 100%);
+            border-radius: 4px;
+        }
+        
+        .patrol-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        .patrol-table th {
+            background: linear-gradient(135deg, rgba(35, 35, 45, 0.95) 0%, rgba(45, 45, 55, 0.95) 100%);
+            position: sticky;
+            top: 0;
+            padding: 20px 15px;
+            text-align: left;
+            font-weight: 700;
+            color: #aaa;
+            border-bottom: 2px solid rgba(70, 70, 80, 0.5);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            z-index: 10;
+        }
+        .patrol-table td {
+            padding: 18px 15px;
+            border-bottom: 1px solid rgba(70, 70, 80, 0.3);
+            transition: all 0.2s ease;
+        }
+        .patrol-table tr {
+            transition: all 0.2s ease;
+        }
+        .patrol-table tr:hover {
+            background: rgba(255, 204, 0, 0.05);
+            transform: translateX(8px);
+        }
+        
+        /* ==================== 统计面板 ==================== */
+        .stats-panel {
+            background: linear-gradient(145deg, rgba(15, 15, 20, 0.98) 0%, rgba(25, 25, 35, 0.98) 100%);
+            border: 1px solid rgba(80, 80, 100, 0.3);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 
+                0 10px 40px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+        .stats-card {
+            background: linear-gradient(135deg, rgba(30, 30, 40, 0.9) 0%, rgba(40, 40, 50, 0.9) 100%);
+            border: 1px solid rgba(70, 70, 80, 0.4);
+            border-radius: 16px;
+            padding: 25px;
+        }
+        .stats-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(70, 70, 80, 0.2);
+        }
+        .stats-item:last-child {
+            border-bottom: none;
+        }
+        .stats-label {
+            color: #aaa;
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+        .stats-value {
+            color: #ffcc00;
+            font-weight: 700;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 1.1rem;
+        }
+        
+        /* ==================== 加载动画 ==================== */
+        .loading-spinner {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255, 204, 0, 0.3);
+            border-radius: 50%;
+            border-top-color: #ffcc00;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* ==================== 响应式设计 ==================== */
+        @media (max-width: 1600px) {
+            .target-addresses-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        
+        @media (max-width: 1200px) {
+            .target-addresses-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .status-display {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (max-width: 992px) {
+            .header h1 {
+                font-size: 2.5rem;
+            }
+            .target-addresses-grid {
+                grid-template-columns: 1fr;
+            }
+            .status-display {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            .button-group {
+                flex-direction: column;
+                align-items: center;
+            }
+            .btn {
+                width: 100%;
+                max-width: 400px;
+            }
+            .total-balance-value {
+                font-size: 2.5rem;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            .status-display {
+                grid-template-columns: 1fr;
+            }
+            .info-row {
+                flex-direction: column;
+                gap: 15px;
+            }
+            .info-label {
+                width: 100%;
+            }
+            .patrol-table {
+                font-size: 0.8rem;
+            }
+            .total-balance-value {
+                font-size: 2rem;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .header h1 {
+                font-size: 1.8rem;
+            }
+            .container {
+                padding: 10px;
+            }
+            .input-panel,
+            .target-grid,
+            .control-panel,
+            .current-scan,
+            .match-results,
+            .patrol-panel,
+            .stats-panel {
+                padding: 20px;
+            }
+            .total-balance-value {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- API选择器模态框 -->
+    <div class="api-selector-modal" id="apiSelectorModal">
+        <div class="api-selector-content">
+            <div class="api-selector-header">
+                <h3>
+                    <span style="color:#ffcc00;">🔗</span> 选择区块链API节点
+                </h3>
+                <p>请选择一个可用的API节点来查询地址余额。系统将自动测试所有节点的延迟并选择最佳节点。</p>
+            </div>
+            
+            <div class="api-grid" id="apiOptionsGrid">
+                <!-- API选项1 -->
+                <div class="api-option" data-id="0" onclick="selectApiOption(0)">
+                    <div class="api-option-header">
+                        <div class="api-name">Blockchain.info (主)</div>
+                        <div class="api-status testing" id="api-status-0">测试中...</div>
+                    </div>
+                    <div class="api-endpoint" title="https://blockchain.info/balance?active=">https://blockchain.info/balance?active=...</div>
+                    <div style="color: #aaa; font-size: 0.9rem; margin-bottom: 10px;">官方主节点，稳定性最高</div>
+                    <div class="api-latency">
+                        <span>延迟:</span>
+                        <span class="latency-value" id="latency-0">-</span>
+                    </div>
+                </div>
+                
+                <!-- API选项2 -->
+                <div class="api-option" data-id="1" onclick="selectApiOption(1)">
+                    <div class="api-option-header">
+                        <div class="api-name">Blockchain.info (备用)</div>
+                        <div class="api-status testing" id="api-status-1">测试中...</div>
+                    </div>
+                    <div class="api-endpoint" title="https://blockchain.info/balance?active=">https://blockchain.info/balance?active=...</div>
+                    <div style="color: #aaa; font-size: 0.9rem; margin-bottom: 10px;">官方备用节点</div>
+                    <div class="api-latency">
+                        <span>延迟:</span>
+                        <span class="latency-value" id="latency-1">-</span>
+                    </div>
+                </div>
+                
+                <!-- API选项3 -->
+                <div class="api-option" data-id="2" onclick="selectApiOption(2)">
+                    <div class="api-option-header">
+                        <div class="api-name">BlockCypher</div>
+                        <div class="api-status testing" id="api-status-2">测试中...</div>
+                    </div>
+                    <div class="api-endpoint" title="https://api.blockcypher.com/v1/btc/main/addrs/">https://api.blockcypher.com/v1/btc/main/addrs/...</div>
+                    <div style="color: #aaa; font-size: 0.9rem; margin-bottom: 10px;">专业API，支持多链查询</div>
+                    <div class="api-latency">
+                        <span>延迟:</span>
+                        <span class="latency-value" id="latency-2">-</span>
+                    </div>
+                </div>
+                
+                <!-- API选项4 -->
+                <div class="api-option" data-id="3" onclick="selectApiOption(3)">
+                    <div class="api-option-header">
+                        <div class="api-name">Blockchair</div>
+                        <div class="api-status testing" id="api-status-3">测试中...</div>
+                    </div>
+                    <div class="api-endpoint" title="https://api.blockchair.com/bitcoin/dashboards/address/">https://api.blockchair.com/bitcoin/dashboards/address/...</div>
+                    <div style="color: #aaa; font-size: 0.9rem; margin-bottom: 10px;">高速API，响应快速</div>
+                    <div class="api-latency">
+                        <span>延迟:</span>
+                        <span class="latency-value" id="latency-3">-</span>
+                    </div>
+                </div>
+                
+                <!-- API选项5 -->
+                <div class="api-option" data-id="4" onclick="selectApiOption(4)">
+                    <div class="api-option-header">
+                        <div class="api-name">BTC.com</div>
+                        <div class="api-status testing" id="api-status-4">测试中...</div>
+                    </div>
+                    <div class="api-endpoint" title="https://chain.api.btc.com/v3/address/">https://chain.api.btc.com/v3/address/...</div>
+                    <div style="color: #aaa; font-size: 0.9rem; margin-bottom: 10px;">矿池API，数据准确</div>
+                    <div class="api-latency">
+                        <span>延迟:</span>
+                        <span class="latency-value" id="latency-4">-</span>
+                    </div>
+                </div>
+                
+                <!-- API选项6 -->
+                <div class="api-option" data-id="5" onclick="selectApiOption(5)">
+                    <div class="api-option-header">
+                        <div class="api-name">SoChain</div>
+                        <div class="api-status testing" id="api-status-5">测试中...</div>
+                    </div>
+                    <div class="api-endpoint" title="https://sochain.com/api/v2/get_address_balance/BTC/">https://sochain.com/api/v2/get_address_balance/BTC/...</div>
+                    <div style="color: #aaa; font-size: 0.9rem; margin-bottom: 10px;">简洁API，易于使用</div>
+                    <div class="api-latency">
+                        <span>延迟:</span>
+                        <span class="latency-value" id="latency-5">-</span>
+                    </div>
+                </div>
+                
+                <!-- API选项7 -->
+                <div class="api-option" data-id="6" onclick="selectApiOption(6)">
+                    <div class="api-option-header">
+                        <div class="api-name">BitcoinAverage</div>
+                        <div class="api-status testing" id="api-status-6">测试中...</div>
+                    </div>
+                    <div class="api-endpoint" title="https://apiv2.bitcoinaverage.com/blockchain/address/">https://apiv2.bitcoinaverage.com/blockchain/address/...</div>
+                    <div style="color: #aaa; font-size: 0.9rem; margin-bottom: 10px;">专业数据API</div>
+                    <div class="api-latency">
+                        <span>延迟:</span>
+                        <span class="latency-value" id="latency-6">-</span>
+                    </div>
+                </div>
+                
+                <!-- API选项8 -->
+                <div class="api-option" data-id="7" onclick="selectApiOption(7)">
+                    <div class="api-option-header">
+                        <div class="api-name">LocalBitcoinsChain</div>
+                        <div class="api-status testing" id="api-status-7">测试中...</div>
+                    </div>
+                    <div class="api-endpoint" title="https://chain.localbitcoins.com/api/address/">https://chain.localbitcoins.com/api/address/...</div>
+                    <div style="color: #aaa; font-size: 0.9rem; margin-bottom: 10px;">交易所API</div>
+                    <div class="api-latency">
+                        <span>延迟:</span>
+                        <span class="latency-value" id="latency-7">-</span>
+                    </div>
+                </div>
+                
+                <!-- API选项9 -->
+                <div class="api-option" data-id="8" onclick="selectApiOption(8)">
+                    <div class="api-option-header">
+                        <div class="api-name">Mempool.space</div>
+                        <div class="api-status testing" id="api-status-8">测试中...</div>
+                    </div>
+                    <div class="api-endpoint" title="https://mempool.space/api/address/">https://mempool.space/api/address/...</div>
+                    <div style="color: #aaa; font-size: 0.9rem; margin-bottom: 10px;">开源API，实时数据</div>
+                    <div class="api-latency">
+                        <span>延迟:</span>
+                        <span class="latency-value" id="latency-8">-</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="api-selector-footer">
+                <button class="btn-select-api" onclick="applySelectedApi()">应用选择</button>
+                <button class="btn-cancel-api" onclick="closeApiSelector()">取消</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <!-- 头部 -->
+        <div class="header">
+            <h1>BTC QUANTUM SCANNER</h1>
+            <div class="subtitle">QUANTUM-LEVEL ADDRESS MATCHING SYSTEM</div>
+        </div>
+        
+        <!-- 输入地址面板 -->
+        <div class="input-panel">
+            <div class="panel-header">
+                <h3>
+                    <span class="panel-icon">📥</span>
+                    地址输入与检测
+                </h3>
+                <div class="input-count">
+                    <span>已输入: <span class="count" id="inputCount">0</span> / 50</span>
+                </div>
+            </div>
+            
+            <div class="input-controls">
+                <textarea class="input-textarea" id="inputAddresses" placeholder="请输入BTC地址进行检测，每行一个（最多50个）..."></textarea>
+            </div>
+            
+            <div class="input-buttons">
+                <button class="btn btn-detect" id="detectButton" onclick="detectAddresses()">
+                    <span class="loading-spinner" id="detectSpinner" style="display:none;"></span>
+                    <span>🔍</span> <span id="detectText">检测地址余额</span>
+                </button>
+                <button class="btn btn-clear" onclick="clearInput()">
+                    <span>🗑️</span> 清空输入
+                </button>
+            </div>
+        </div>
+        
+        <!-- 目标地址网格 -->
+        <div class="target-grid" id="targetGrid" style="display:none;">
+            <div class="panel-header">
+                <h3>
+                    <span class="panel-icon">🎯</span>
+                    目标地址列表
+                </h3>
+                <div class="input-count">
+                    <span>有效地址: <span class="count" id="targetCount">0</span> / 50</span>
+                </div>
+            </div>
+            
+            <div class="target-addresses-grid" id="targetAddressesGrid">
+                <!-- 目标地址将动态显示在这里 -->
+                <div style="grid-column: 1 / -1; text-align: center; color: #888; padding: 40px;">
+                    📋 检测后将显示有余额的地址
+                </div>
+            </div>
+        </div>
+        
+        <!-- 控制面板 -->
+        <div class="control-panel">
+            <div class="button-group">
+                <button class="btn btn-start" id="startButton" onclick="startScanner()">
+                    <span class="loading-spinner" id="startSpinner" style="display:none;"></span>
+                    <span>▶</span> <span id="startText">开始扫描</span>
+                </button>
+                <button class="btn btn-pause" id="pauseButton" onclick="pauseScanner()" style="display:none;">
+                    <span>⏸</span> 暂停扫描
+                </button>
+                <button class="btn btn-stop" id="stopButton" onclick="stopScanner()" style="display:none;">
+                    <span>⏹</span> 停止扫描
+                </button>
+                <button class="btn btn-stats" onclick="showStats()">
+                    <span>📊</span> 系统统计
+                </button>
+                <button class="btn btn-export" onclick="exportData()">
+                    <span>📋</span> 导出数据
+                </button>
+                <button class="btn btn-reconnect" onclick="showApiSelector()">
+                    <span>🔗</span> API重连
+                </button>
+            </div>
+            
+            <div class="speed-control">
+                <label>量子扫描速度控制</label>
+                
+                <div class="speed-slider-container">
+                    <div class="speed-value-display" id="speedValueDisplay">20 个/秒</div>
+                    <input type="range" min="20" max="10000" value="20" class="speed-slider" id="speedSlider" oninput="updateSpeedDisplay()">
+                </div>
+                
+                <div class="speed-markers">
+                    <span class="speed-marker">20/秒</span>
+                    <span class="speed-marker">5000/秒</span>
+                    <span class="speed-marker">10000/秒</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 状态显示 -->
+        <div class="status-display">
+            <div class="status-card">
+                <div class="status-value status-api" id="apiStatusValue">
+                    <span id="apiStatusIndicator">●</span> <span id="apiStatusText">离线</span>
+                </div>
+                <div class="status-label">API状态</div>
+            </div>
+            <div class="status-card">
+                <div class="status-value status-generated" id="generatedCount">0</div>
+                <div class="status-label">已生成地址</div>
+            </div>
+            <div class="status-card">
+                <div class="status-value status-attempts" id="matchAttempts">0</div>
+                <div class="status-label">匹配尝试</div>
+            </div>
+            <div class="status-card">
+                <div class="status-value status-success" id="matchSuccesses">0</div>
+                <div class="status-label">匹配成功</div>
+            </div>
+            <div class="status-card">
+                <div class="status-value status-time" id="runTime">0s</div>
+                <div class="status-label">运行时间</div>
+            </div>
+            <div class="status-card">
+                <div class="status-value status-speed" id="currentSpeed">0个/秒</div>
+                <div class="status-label">当前速度</div>
+            </div>
+        </div>
+        
+        <!-- 当前扫描 -->
+        <div class="current-scan">
+            <div class="panel-header">
+                <h3>
+                    <span class="panel-icon">🔍</span>
+                    当前扫描状态
+                </h3>
+                <div style="color: #ffcc00; font-weight: 700; font-family: 'Consolas';" id="currentScanNumber">#0</div>
+            </div>
+            <div class="scan-info">
+                <div class="info-row">
+                    <div class="info-label">助记词:</div>
+                    <div class="info-value">
+                        <div class="mnemonic-value" id="currentMnemonic">等待扫描开始...</div>
+                    </div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">私钥:</div>
+                    <div class="info-value">
+                        <div class="private-key-value" id="currentPrivateKey">-</div>
+                    </div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">生成地址:</div>
+                    <div class="info-value">
+                        <div class="address-value" id="currentAddress">-</div>
+                    </div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">匹配状态:</div>
+                    <div class="info-value">
+                        <span class="match-status match-failed" id="matchStatus">等待中</span>
+                    </div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">生成时间:</div>
+                    <div class="info-value" id="currentTime">-</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 匹配结果 -->
+        <div class="match-results" id="matchResultsPanel" style="display:none;">
+            <div class="panel-header">
+                <h3>
+                    <span class="panel-icon">💰</span>
+                    量子匹配结果
+                </h3>
+                <div style="color: #00ff88; font-weight: 700; font-family: 'Consolas';" id="matchResultsCount">0 个</div>
+            </div>
+            
+            <!-- 总余额显示 -->
+            <div class="total-balance-display" id="totalBalanceDisplay" style="display:none;">
+                <div class="total-balance-label">总匹配余额</div>
+                <div class="total-balance-value" id="totalBalanceValue">0.00000000 BTC</div>
+            </div>
+            
+            <div id="matchResultsList">
+                <div style="text-align: center; color: #888; padding: 60px;">
+                    🎯 尚未发现匹配结果，继续扫描中...
+                </div>
+            </div>
+        </div>
+        
+        <!-- 巡查面板 -->
+        <div class="patrol-panel">
+            <div class="panel-header">
+                <h3>
+                    <span class="panel-icon">📋</span>
+                    地址巡查记录
+                </h3>
+            </div>
+            
+            <div class="table-container">
+                <table class="patrol-table" id="patrolTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 70px;">ID</th>
+                            <th>助记词 (前3词)</th>
+                            <th>生成地址</th>
+                            <th style="width: 120px;">匹配状态</th>
+                            <th style="width: 100px;">时间</th>
+                        </tr>
+                    </thead>
+                    <tbody id="patrolTableBody">
+                        <tr>
+                            <td colspan="5" style="text-align: center; padding: 60px; color: #888;">
+                                ⚡ 准备就绪，点击"开始扫描"按钮启动
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- 统计面板 -->
+        <div class="stats-panel">
+            <div class="panel-header">
+                <h3>
+                    <span class="panel-icon">📊</span>
+                    系统统计信息
+                </h3>
+            </div>
+            <div class="stats-grid">
+                <div class="stats-card">
+                    <div class="stats-item">
+                        <span class="stats-label">目标地址总数</span>
+                        <span class="stats-value" id="statTotalTargets">0</span>
+                    </div>
+                    <div class="stats-item">
+                        <span class="stats-label">已检测余额</span>
+                        <span class="stats-value" id="statCheckedTargets">0/0</span>
+                    </div>
+                    <div class="stats-item">
+                        <span class="stats-label">有余额地址</span>
+                        <span class="stats-value" id="statBalanceTargets">0</span>
+                    </div>
+                    <div class="stats-item">
+                        <span class="stats-label">总BTC余额</span>
+                        <span class="stats-value" id="statTotalBalance">0.00000000 BTC</span>
+                    </div>
+                </div>
+                <div class="stats-card">
+                    <div class="stats-item">
+                        <span class="stats-label">匹配成功率</span>
+                        <span class="stats-value" id="statMatchRate">0.000000%</span>
+                    </div>
+                    <div class="stats-item">
+                        <span class="stats-label">平均速度</span>
+                        <span class="stats-value" id="statAvgSpeed">0.0个/秒</span>
+                    </div>
+                    <div class="stats-item">
+                        <span class="stats-label">运行时间</span>
+                        <span class="stats-value" id="statRunTime">0秒</span>
+                    </div>
+                    <div class="stats-item">
+                        <span class="stats-label">预计完成</span>
+                        <span class="stats-value" id="statEstimatedTime">∞</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 音频元素（警报声） -->
+        <audio id="alarmSound" preload="auto">
+            <source src="https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3" type="audio/mpeg">
+        </audio>
+    </div>
+    
+    <script src="buidl.js"></script>
+    <script>
+        // ==================== 全局变量 ====================
+        let isScanning = false;
+        let isStopped = false;
+        let scanCounter = 0;
+        let matchAttempts = 0;
+        let matchSuccesses = 0;
+        let generateInterval;
+        let generateSpeed = 50; // 默认20个/秒（1000/20=50ms）
+        
+        // 输入地址数据
+        let inputAddresses = [];
+        
+        // 目标地址数据
+        let targetAddresses = [];
+        let targetAddressesData = {};
+        let matchedAddresses = new Set();
+        
+        // 匹配结果数据（存储所有匹配成功的结果）
+        let matchResults = [];
+        
+        // API配置
+        let apiConnected = false;
+        let selectedApiIndex = -1;
+        let currentApiEndpoint = '';
+        
+        // API选项列表（9个不同的区块链API）
+        const apiOptions = [
+            {
+                id: 0,
+                name: "Blockchain.info (主)",
+                endpoint: "https://blockchain.info/balance?active=",
+                description: "官方主节点，稳定性最高",
+                testAddress: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
+            },
+            {
+                id: 1,
+                name: "Blockchain.info (备用)",
+                endpoint: "https://blockchain.info/balance?active=",
+                description: "官方备用节点",
+                testAddress: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
+            },
+            {
+                id: 2,
+                name: "BlockCypher",
+                endpoint: "https://api.blockcypher.com/v1/btc/main/addrs/",
+                description: "专业API，支持多链查询",
+                testAddress: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
+            },
+            {
+                id: 3,
+                name: "Blockchair",
+                endpoint: "https://api.blockchair.com/bitcoin/dashboards/address/",
+                description: "高速API，响应快速",
+                testAddress: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
+            },
+            {
+                id: 4,
+                name: "BTC.com",
+                endpoint: "https://chain.api.btc.com/v3/address/",
+                description: "矿池API，数据准确",
+                testAddress: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
+            },
+            {
+                id: 5,
+                name: "SoChain",
+                endpoint: "https://sochain.com/api/v2/get_address_balance/BTC/",
+                description: "简洁API，易于使用",
+                testAddress: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
+            },
+            {
+                id: 6,
+                name: "BitcoinAverage",
+                endpoint: "https://apiv2.bitcoinaverage.com/blockchain/address/",
+                description: "专业数据API",
+                testAddress: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
+            },
+            {
+                id: 7,
+                name: "LocalBitcoinsChain",
+                endpoint: "https://chain.localbitcoins.com/api/address/",
+                description: "交易所API",
+                testAddress: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
+            },
+            {
+                id: 8,
+                name: "Mempool.space",
+                endpoint: "https://mempool.space/api/address/",
+                description: "开源API，实时数据",
+                testAddress: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
+            }
+        ];
+        
+        // 存储所有记录（暂停后继续的关键）
+        let allRecords = [];
+        let lastScanCounter = 0;
+        let lastMatchAttempts = 0;
+        let lastMatchSuccesses = 0;
+        
+        // 性能跟踪
+        let scanStartTime = null;
+        let lastSpeedCheckTime = null;
+        let lastSpeedCheckCount = 0;
+        
+        // 总余额
+        let totalMatchedBalance = 0;
+        
+        // 速度范围：20-10000个/秒
+        const MIN_SPEED = 20;  // 20个/秒
+        const MAX_SPEED = 10000; // 10000个/秒
+        const DEFAULT_SPEED = 20; // 默认20个/秒
+
+        // ==================== 初始化函数 ====================
+        function init() {
+            console.log("初始化量子扫描系统...");
+            
+            // 初始化输入地址监听
+            document.getElementById('inputAddresses').addEventListener('input', updateInputAddressList);
+            
+            // 初始化速度控制
+            initializeSpeedControl();
+            
+            // 初始化统计信息
+            updateStats();
+            
+            // 显示API选择器
+            setTimeout(() => {
+                showApiSelector();
+            }, 500);
+            
+            console.log("量子扫描系统初始化完成");
+        }
+
+        // ==================== API管理 ====================
+        function testAllAPIs() {
+            console.log("开始测试所有API节点...");
+            
+            // 显示测试状态
+            updateApiStatus('正在测试API节点...', 'testing');
+            
+            // 重置所有API状态
+            for (let i = 0; i < 9; i++) {
+                const statusElement = document.getElementById(`api-status-${i}`);
+                const latencyElement = document.getElementById(`latency-${i}`);
+                if (statusElement) {
+                    statusElement.textContent = '测试中...';
+                    statusElement.className = 'api-status testing';
+                }
+                if (latencyElement) {
+                    latencyElement.textContent = '-';
+                }
+            }
+            
+            // 测试所有API
+            apiOptions.forEach((api, index) => {
+                setTimeout(() => testSingleAPI(api.id), index * 800);
+            });
+        }
+
+        async function testSingleAPI(apiId) {
+            const api = apiOptions[apiId];
+            const statusElement = document.getElementById(`api-status-${apiId}`);
+            const latencyElement = document.getElementById(`latency-${apiId}`);
+            
+            if (!statusElement || !latencyElement) {
+                console.log(`API ${api.name} 元素未找到`);
+                return;
+            }
+            
+            try {
+                const startTime = Date.now();
+                
+                // 根据API类型构建测试URL
+                let testUrl;
+                if (api.id === 0 || api.id === 1) {
+                    // blockchain.info格式
+                    testUrl = `${api.endpoint}${api.testAddress}`;
+                } else if (api.id === 2) {
+                    // BlockCypher格式
+                    testUrl = `${api.endpoint}${api.testAddress}/balance`;
+                } else if (api.id === 3) {
+                    // Blockchair格式
+                    testUrl = `${api.endpoint}${api.testAddress}`;
+                } else if (api.id === 4) {
+                    // BTC.com格式
+                    testUrl = `${api.endpoint}${api.testAddress}`;
+                } else if (api.id === 5) {
+                    // SoChain格式
+                    testUrl = `${api.endpoint}${api.testAddress}`;
+                } else {
+                    // 通用格式
+                    testUrl = `${api.endpoint}${api.testAddress}`;
+                }
+                
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
+                
+                const response = await fetch(testUrl, {
+                    method: 'GET',
+                    signal: controller.signal,
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (response.ok) {
+                    const endTime = Date.now();
+                    const latency = endTime - startTime;
+                    
+                    latencyElement.textContent = `${latency}ms`;
+                    statusElement.textContent = '在线';
+                    statusElement.className = 'api-status online';
+                    
+                    console.log(`API ${api.name} 测试成功，延迟: ${latency}ms`);
+                    
+                    // 如果这是第一个成功的API，自动选择它
+                    if (selectedApiIndex === -1) {
+                        selectedApiIndex = apiId;
+                        selectApiOption(apiId);
+                    }
+                    
+                    return { success: true, latency: latency, api: api };
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                console.log(`API ${api.name} 测试失败:`, error.message);
+                
+                latencyElement.textContent = '失败';
+                statusElement.textContent = '离线';
+                statusElement.className = 'api-status offline';
+                
+                return { success: false, latency: null, api: api };
+            }
+        }
+
+        function selectApiOption(index) {
+            // 移除之前的选择
+            document.querySelectorAll('.api-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            
+            // 添加新的选择
+            selectedApiIndex = index;
+            const selectedOption = document.querySelector(`.api-option[data-id="${index}"]`);
+            if (selectedOption) {
+                selectedOption.classList.add('selected');
+            }
+        }
+
+        function applySelectedApi() {
+            if (selectedApiIndex === -1) {
+                alert('请先选择一个API节点！');
+                return;
+            }
+            
+            const selectedApi = apiOptions[selectedApiIndex];
+            currentApiEndpoint = selectedApi.endpoint;
+            
+            // 更新API状态
+            updateApiStatus('量子在线', 'online');
+            apiConnected = true;
+            
+            // 关闭选择器
+            closeApiSelector();
+            
+            // 显示成功提示
+            showNotification(`✅ 已切换到: ${selectedApi.name}`, 'success');
+            
+            console.log(`已选择API: ${selectedApi.name}`);
+        }
+
+        function updateApiStatus(status, type = 'offline') {
+            const apiStatusIndicator = document.getElementById('apiStatusIndicator');
+            const apiStatusText = document.getElementById('apiStatusText');
+            
+            if (apiStatusText) {
+                apiStatusText.textContent = status;
+            }
+            
+            if (apiStatusIndicator) {
+                switch(type) {
+                    case 'online':
+                        apiStatusIndicator.style.color = '#00ff88';
+                        if (apiStatusText) apiStatusText.style.color = '#00ff88';
+                        break;
+                    case 'offline':
+                        apiStatusIndicator.style.color = '#ff3366';
+                        if (apiStatusText) apiStatusText.style.color = '#ff3366';
+                        break;
+                    case 'testing':
+                        apiStatusIndicator.style.color = '#ffcc00';
+                        if (apiStatusText) apiStatusText.style.color = '#ffcc00';
+                        break;
+                }
+            }
+        }
+
+        function showApiSelector() {
+            document.getElementById('apiSelectorModal').style.display = 'flex';
+            testAllAPIs(); // 开始测试所有API
+        }
+
+        function closeApiSelector() {
+            document.getElementById('apiSelectorModal').style.display = 'none';
+        }
+
+        // ==================== 速度控制 ====================
+        function initializeSpeedControl() {
+            const slider = document.getElementById('speedSlider');
+            slider.min = MIN_SPEED;
+            slider.max = MAX_SPEED;
+            slider.value = DEFAULT_SPEED;
+            
+            updateSpeedDisplay();
+        }
+
+        function updateSpeedDisplay() {
+            const slider = document.getElementById('speedSlider');
+            const speed = parseInt(slider.value);
+            
+            document.getElementById('speedValueDisplay').textContent = speed + " 个/秒";
+            
+            generateSpeed = Math.max(1, Math.floor(1000 / speed));
+            
+            console.log(`速度设置为: ${speed}个/秒, 间隔: ${generateSpeed}ms`);
+            
+            if (isScanning) {
+                clearInterval(generateInterval);
+                generateInterval = setInterval(generateAndMatch, generateSpeed);
+            }
+        }
+
+        // ==================== 输入地址管理 ====================
+        function updateInputAddressList() {
+            const textarea = document.getElementById('inputAddresses');
+            const addresses = textarea.value.trim().split('\n')
+                .map(addr => addr.trim())
+                .filter(addr => addr.length > 0)
+                .slice(0, 50);
+            
+            inputAddresses = addresses;
+            document.getElementById('inputCount').textContent = addresses.length;
+        }
+
+        // ==================== 地址检测函数 ====================
+        async function detectAddresses() {
+            if (inputAddresses.length === 0) {
+                alert('请先输入要检测的BTC地址！');
+                return;
+            }
+            
+            if (!apiConnected) {
+                alert('请先选择一个API节点！');
+                showApiSelector();
+                return;
+            }
+            
+            // 显示加载状态
+            const detectBtn = document.getElementById('detectButton');
+            const detectText = document.getElementById('detectText');
+            const detectSpinner = document.getElementById('detectSpinner');
+            
+            detectBtn.disabled = true;
+            detectText.textContent = '检测中...';
+            detectSpinner.style.display = 'inline-block';
+            
+            // 重置目标地址数据
+            targetAddresses = [];
+            targetAddressesData = {};
+            matchedAddresses.clear();
+            matchResults = [];
+            totalMatchedBalance = 0;
+            
+            console.log(`开始检测 ${inputAddresses.length} 个地址的余额...`);
+            
+            // 并行检测地址余额
+            const batchSize = 10;
+            const validAddresses = [];
+            
+            for (let i = 0; i < inputAddresses.length; i += batchSize) {
+                const batch = inputAddresses.slice(i, i + batchSize);
+                
+                // 并行检测批量地址
+                await Promise.allSettled(batch.map(async (address) => {
+                    try {
+                        const balance = await checkSingleAddressBalance(address);
+                        
+                        if (balance !== null && balance > 0) {
+                            // 有余额的地址添加到目标列表
+                            validAddresses.push(address);
+                            targetAddressesData[address] = {
+                                status: 'completed',
+                                balance: balance,
+                                checked: true
+                            };
+                        }
+                    } catch (error) {
+                        console.log(`地址 ${address} 检测失败:`, error.message);
+                    }
+                }));
+                
+                // 短暂延迟避免请求过于密集
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+            
+            // 更新目标地址列表
+            targetAddresses = validAddresses;
+            
+            // 显示目标地址网格
+            document.getElementById('targetGrid').style.display = 'block';
+            renderTargetAddressesGrid();
+            
+            // 更新统计信息
+            updateStats();
+            
+            // 显示检测结果
+            const validCount = validAddresses.length;
+            const totalCount = inputAddresses.length;
+            
+            // 恢复按钮状态
+            detectBtn.disabled = false;
+            detectText.textContent = '检测地址余额';
+            detectSpinner.style.display = 'none';
+            
+            // 显示结果通知
+            if (validCount > 0) {
+                alert(`✅ 检测完成！\n\n总计检测: ${totalCount} 个地址\n有余额地址: ${validCount} 个\n无余额地址: ${totalCount - validCount} 个\n\n已自动将有余额地址添加到目标列表`);
+            } else {
+                alert(`⚠️ 检测完成！\n\n总计检测: ${totalCount} 个地址\n有余额地址: 0 个\n所有地址均为零余额，请检查地址是否正确`);
+            }
+            
+            console.log(`地址检测完成，有效地址: ${validCount}/${totalCount}`);
+        }
+
+        async function checkSingleAddressBalance(address) {
+            if (!currentApiEndpoint || selectedApiIndex === -1) {
+                return null;
+            }
+            
+            const api = apiOptions[selectedApiIndex];
+            
+            try {
+                let url;
+                // 根据不同API构建查询URL
+                switch(api.id) {
+                    case 0:
+                    case 1:
+                        // blockchain.info格式
+                        url = `${api.endpoint}${address}`;
+                        break;
+                    case 2:
+                        // BlockCypher格式
+                        url = `${api.endpoint}${address}/balance`;
+                        break;
+                    case 3:
+                        // Blockchair格式
+                        url = `${api.endpoint}${address}`;
+                        break;
+                    case 4:
+                        // BTC.com格式
+                        url = `${api.endpoint}${address}`;
+                        break;
+                    case 5:
+                        // SoChain格式
+                        url = `${api.endpoint}${address}`;
+                        break;
+                    default:
+                        // 通用格式
+                        url = `${api.endpoint}${address}`;
+                }
+                
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
+                
+                const response = await fetch(url, {
+                    method: 'GET',
+                    signal: controller.signal,
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // 根据不同API解析余额
+                    let balance = 0;
+                    switch(api.id) {
+                        case 0:
+                        case 1:
+                            // blockchain.info格式
+                            balance = data[address] ? data[address].final_balance || 0 : 0;
+                            break;
+                        case 2:
+                            // BlockCypher格式
+                            balance = data.balance || 0;
+                            break;
+                        case 3:
+                            // Blockchair格式
+                            balance = data.data && data.data[address] ? 
+                                data.data[address].address.balance || 0 : 0;
+                            break;
+                        case 4:
+                            // BTC.com格式
+                            balance = data.data ? data.data.balance || 0 : 0;
+                            break;
+                        case 5:
+                            // SoChain格式
+                            balance = data.data ? data.data.confirmed_balance || 0 : 0;
+                            break;
+                        default:
+                            balance = 0;
+                    }
+                    
+                    return balance;
+                }
+            } catch (error) {
+                console.log(`地址 ${address} 查询失败:`, error.message);
+            }
+            
+            return null;
+        }
+
+        function clearInput() {
+            document.getElementById('inputAddresses').value = '';
+            inputAddresses = [];
+            document.getElementById('inputCount').textContent = '0';
+            
+            // 隐藏目标地址网格
+            document.getElementById('targetGrid').style.display = 'none';
+            
+            // 重置目标地址数据
+            targetAddresses = [];
+            targetAddressesData = {};
+            
+            console.log("输入已清空");
+        }
+
+        // ==================== 目标地址显示 ====================
+        function renderTargetAddressesGrid() {
+            const grid = document.getElementById('targetAddressesGrid');
+            document.getElementById('targetCount').textContent = targetAddresses.length;
+            
+            if (targetAddresses.length === 0) {
+                grid.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; color: #888; padding: 40px;">
+                        📋 未检测到有余额的地址
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '';
+            targetAddresses.forEach((address, index) => {
+                const data = targetAddressesData[address] || { status: 'completed', balance: 0 };
+                const addressShort = address.length > 24 ? address.substring(0, 21) + '...' : address;
+                const balanceBTC = (data.balance / 100000000).toFixed(8);
+                
+                html += `
+                    <div class="target-address-group">
+                        <div class="address-item">
+                            <div class="address-info">
+                                <div class="address-index">${index + 1}</div>
+                                <div class="address-text" title="${address}">${addressShort}</div>
+                            </div>
+                            <div class="address-balance balance-positive">${balanceBTC} BTC</div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            grid.innerHTML = html;
+        }
+
+        // ==================== 扫描控制 ====================
+        async function startScanner() {
+            if (isScanning) return;
+            
+            if (targetAddresses.length === 0) {
+                alert('请先检测地址余额，获取有余额的目标地址！');
+                return;
+            }
+            
+            if (!apiConnected) {
+                alert('请先选择一个API节点！');
+                showApiSelector();
+                return;
+            }
+            
+            isScanning = true;
+            isStopped = false;
+            
+            // 显示匹配结果面板
+            document.getElementById('matchResultsPanel').style.display = 'block';
+            
+            if (scanStartTime === null) {
+                scanStartTime = Date.now();
+                scanCounter = lastScanCounter;
+                matchAttempts = lastMatchAttempts;
+                matchSuccesses = lastMatchSuccesses;
+            } else {
+                scanCounter = lastScanCounter;
+                matchAttempts = lastMatchAttempts;
+                matchSuccesses = lastMatchSuccesses;
+            }
+            
+            lastSpeedCheckTime = Date.now();
+            lastSpeedCheckCount = scanCounter;
+            
+            // 更新按钮状态
+            document.getElementById('startButton').style.display = 'none';
+            document.getElementById('pauseButton').style.display = 'flex';
+            document.getElementById('stopButton').style.display = 'flex';
+            document.getElementById('startText').textContent = '继续扫描';
+            
+            // 开始生成和匹配地址
+            generateInterval = setInterval(generateAndMatch, generateSpeed);
+            
+            console.log(`扫描已开始，目标地址: ${targetAddresses.length}个，速度: ${Math.round(1000/generateSpeed)}个/秒`);
+        }
+
+        function pauseScanner() {
+            if (!isScanning) return;
+            
+            isScanning = false;
+            clearInterval(generateInterval);
+            
+            lastScanCounter = scanCounter;
+            lastMatchAttempts = matchAttempts;
+            lastMatchSuccesses = matchSuccesses;
+            
+            document.getElementById('pauseButton').style.display = 'none';
+            document.getElementById('startButton').style.display = 'flex';
+            
+            console.log(`扫描已暂停，当前进度: #${scanCounter}`);
+        }
+
+        function stopScanner() {
+            isScanning = false;
+            isStopped = true;
+            clearInterval(generateInterval);
+            
+            lastScanCounter = 0;
+            lastMatchAttempts = 0;
+            lastMatchSuccesses = 0;
+            scanCounter = 0;
+            matchAttempts = 0;
+            matchSuccesses = 0;
+            scanStartTime = null;
+            allRecords = [];
+            matchedAddresses.clear();
+            matchResults = [];
+            totalMatchedBalance = 0;
+            
+            document.getElementById('pauseButton').style.display = 'none';
+            document.getElementById('stopButton').style.display = 'none';
+            document.getElementById('startButton').style.display = 'flex';
+            document.getElementById('startText').textContent = '开始扫描';
+            
+            document.getElementById('patrolTableBody').innerHTML = `
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 60px; color: #888;">
+                        ⚡ 准备就绪，点击"开始扫描"按钮启动
+                    </td>
+                </tr>
+            `;
+            
+            document.getElementById('matchResultsList').innerHTML = `
+                <div style="text-align: center; color: #888; padding: 60px;">
+                    🎯 尚未发现匹配结果，继续扫描中...
+                </div>
+            `;
+            
+            // 隐藏总余额显示
+            document.getElementById('totalBalanceDisplay').style.display = 'none';
+            
+            document.getElementById('currentScanNumber').textContent = '#0';
+            document.getElementById('currentMnemonic').textContent = '等待扫描开始...';
+            document.getElementById('currentPrivateKey').textContent = '-';
+            document.getElementById('currentAddress').textContent = '-';
+            document.getElementById('currentTime').textContent = '-';
+            document.getElementById('matchStatus').textContent = '等待中';
+            document.getElementById('matchStatus').className = 'match-status match-failed';
+            
+            updateStatusDisplay();
+            updateStats();
+            
+            console.log("扫描已停止，所有状态已重置");
+        }
+
+        async function generateAndMatch() {
+            if (!isScanning || isStopped) return;
+            
+            scanCounter++;
+            matchAttempts++;
+            
+            let mnemonic, address, privateKey;
+            
+            try {
+                const newmnemo = buidl.newMnemonic();
+                mnemonic = newmnemo.words;
+                
+                const hdseed = buidl.mnemonic2SeedHex(mnemonic);
+                const addr = buidl.fromHDSeed(hdseed.seedHex, 0, 0, 0);
+                address = addr.addr;
+                privateKey = addr.pk;
+            } catch (error) {
+                console.error('生成助记词失败:', error);
+                mnemonic = '生成错误';
+                address = 'N/A';
+                privateKey = 'N/A';
+            }
+            
+            const record = {
+                id: scanCounter,
+                mnemonic: mnemonic,
+                address: address,
+                privateKey: privateKey,
+                timestamp: new Date().toLocaleTimeString(),
+                date: new Date().toISOString(),
+                matched: false,
+                matchedAddress: null,
+                balance: 0
+            };
+            
+            // 检查是否匹配目标地址
+            const matchIndex = targetAddresses.indexOf(address);
+            if (matchIndex !== -1 && !matchedAddresses.has(address)) {
+                // 匹配成功！
+                record.matched = true;
+                record.matchedAddress = address;
+                record.balance = targetAddressesData[address].balance || 0;
+                
+                matchSuccesses++;
+                matchedAddresses.add(address);
+                
+                // 添加到匹配结果列表
+                matchResults.push(record);
+                
+                // 更新总余额
+                totalMatchedBalance += record.balance;
+                
+                // 添加匹配结果到UI
+                addMatchResult(record);
+                
+                // 更新总余额显示
+                updateTotalBalanceDisplay();
+                
+                // 播放提示音
+                playAlarm();
+                
+                // 显示成功通知
+                showMatchNotification(record);
+            }
+            
+            // 添加到记录列表
+            allRecords.unshift(record);
+            
+            // 更新当前扫描显示
+            updateCurrentScanDisplay(record);
+            
+            // 更新巡查表格
+            updatePatrolTable();
+            
+            // 更新状态显示
+            updateStatusDisplay();
+            updateStats();
+            
+            // 限制记录数量
+            if (allRecords.length > 200) {
+                allRecords = allRecords.slice(0, 150);
+            }
+        }
+
+        // ==================== UI更新函数 ====================
+        function updateCurrentScanDisplay(record) {
+            document.getElementById('currentScanNumber').textContent = `#${record.id}`;
+            document.getElementById('currentMnemonic').textContent = record.mnemonic;
+            document.getElementById('currentPrivateKey').textContent = record.privateKey;
+            document.getElementById('currentAddress').textContent = record.address;
+            document.getElementById('currentTime').textContent = record.timestamp;
+            
+            const matchStatus = document.getElementById('matchStatus');
+            if (record.matched) {
+                matchStatus.textContent = '✅ 量子匹配成功！';
+                matchStatus.className = 'match-status match-success';
+            } else {
+                matchStatus.textContent = '❌ 不匹配';
+                matchStatus.className = 'match-status match-failed';
+            }
+        }
+
+        function updateTotalBalanceDisplay() {
+            if (totalMatchedBalance > 0) {
+                const totalBalanceBTC = (totalMatchedBalance / 100000000).toFixed(8);
+                document.getElementById('totalBalanceValue').textContent = `${totalBalanceBTC} BTC`;
+                document.getElementById('totalBalanceDisplay').style.display = 'block';
+            }
+        }
+
+        function addMatchResult(record) {
+            const container = document.getElementById('matchResultsList');
+            
+            if (container.innerHTML.includes('尚未发现匹配结果')) {
+                container.innerHTML = '';
+            }
+            
+            const balanceBTC = (record.balance / 100000000).toFixed(8);
+            
+            const matchResultHTML = `
+                <div class="match-item">
+                    <div class="match-item-header">
+                        <span>💰</span> 量子匹配成功 #${record.id} - ${balanceBTC} BTC
+                    </div>
+                    <div style="margin-bottom: 20px; color: #aaa;">
+                        <div><strong style="color:#8bb9ff;">地址:</strong> <span style="font-family: monospace; color: #8bb9ff;">${record.address}</span></div>
+                        <div><strong style="color:#00ff88;">余额:</strong> <span style="color:#00ff88; font-weight: 800;">${balanceBTC} BTC</span></div>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <div style="color: #ffcc00; margin-bottom: 5px;"><strong>助记词:</strong></div>
+                        <div style="background: rgba(255, 204, 0, 0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(255, 204, 0, 0.2); font-family: monospace; color: #ffcc00;">
+                            ${record.mnemonic}
+                        </div>
+                    </div>
+                    <div>
+                        <div style="color: #cc88ff; margin-bottom: 5px;"><strong>私钥:</strong></div>
+                        <div style="background: rgba(204, 136, 255, 0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(204, 136, 255, 0.2); font-family: monospace; color: #cc88ff; font-size: 0.9em; word-break: break-all;">
+                            ${record.privateKey}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML = matchResultHTML + container.innerHTML;
+        }
+
+        function updateStatusDisplay() {
+            document.getElementById('generatedCount').textContent = scanCounter;
+            document.getElementById('matchAttempts').textContent = matchAttempts;
+            document.getElementById('matchSuccesses').textContent = matchSuccesses;
+            document.getElementById('matchResultsCount').textContent = `${matchSuccesses} 个`;
+            
+            const elapsedSeconds = scanStartTime ? Math.floor((Date.now() - scanStartTime) / 1000) : 0;
+            document.getElementById('runTime').textContent = formatTime(elapsedSeconds);
+            
+            const now = Date.now();
+            if (lastSpeedCheckTime && now - lastSpeedCheckTime >= 1000) {
+                const speed = scanCounter - lastSpeedCheckCount;
+                document.getElementById('currentSpeed').textContent = `${speed}个/秒`;
+                lastSpeedCheckTime = now;
+                lastSpeedCheckCount = scanCounter;
+            }
+        }
+
+        function updatePatrolTable() {
+            const tableBody = document.getElementById('patrolTableBody');
+            const recentRecords = allRecords.slice(0, 30);
+            
+            if (recentRecords.length === 0) return;
+            
+            let html = '';
+            recentRecords.forEach((record, index) => {
+                const mnemonicWords = record.mnemonic.split(' ');
+                const mnemonicShort = mnemonicWords.slice(0, 3).join(' ') + (mnemonicWords.length > 3 ? ' ...' : '');
+                const addressShort = record.address.length > 20 ? 
+                    record.address.substring(0, 17) + '...' : record.address;
+                
+                const statusText = record.matched ? 
+                    '<span style="color:#00ff88; font-weight:800;">✅ 匹配</span>' : 
+                    '<span style="color:#888;">⚪ 不匹配</span>';
+                
+                html += `
+                    <tr>
+                        <td>${record.id}</td>
+                        <td title="${record.mnemonic}">${mnemonicShort}</td>
+                        <td title="${record.address}">${addressShort}</td>
+                        <td>${statusText}</td>
+                        <td>${record.timestamp}</td>
+                    </tr>
+                `;
+            });
+            
+            tableBody.innerHTML = html;
+        }
+
+        function updateStats() {
+            const totalTargets = targetAddresses.length;
+            const checkedTargets = totalTargets > 0 ? 
+                Object.values(targetAddressesData).filter(data => data.checked).length : 0;
+            const balanceTargets = totalTargets > 0 ? 
+                Object.values(targetAddressesData).filter(data => data.balance > 0).length : 0;
+            const totalBalance = totalTargets > 0 ? 
+                Object.values(targetAddressesData).reduce((sum, data) => sum + (data.balance || 0), 0) / 100000000 : 0;
+            
+            const matchRate = matchAttempts > 0 ? 
+                ((matchSuccesses / matchAttempts) * 100) : 0;
+            
+            const elapsedSeconds = scanStartTime ? Math.floor((Date.now() - scanStartTime) / 1000) : 0;
+            const avgSpeed = elapsedSeconds > 0 ? (scanCounter / elapsedSeconds) : 0;
+            
+            let estimatedTime = '∞';
+            if (matchRate > 0 && totalTargets > 0 && matchSuccesses < totalTargets) {
+                const remainingMatches = totalTargets - matchSuccesses;
+                const secondsNeeded = remainingMatches / (matchAttempts / elapsedSeconds);
+                estimatedTime = formatTime(Math.round(secondsNeeded));
+            }
+            
+            document.getElementById('statTotalTargets').textContent = totalTargets;
+            document.getElementById('statCheckedTargets').textContent = `${checkedTargets}/${totalTargets}`;
+            document.getElementById('statBalanceTargets').textContent = balanceTargets;
+            document.getElementById('statTotalBalance').textContent = totalBalance.toFixed(8) + ' BTC';
+            document.getElementById('statMatchRate').textContent = matchRate.toFixed(6) + '%';
+            document.getElementById('statAvgSpeed').textContent = avgSpeed.toFixed(1) + '个/秒';
+            document.getElementById('statRunTime').textContent = formatTime(elapsedSeconds);
+            document.getElementById('statEstimatedTime').textContent = estimatedTime;
+        }
+
+        // ==================== 辅助函数 ====================
+        function formatTime(seconds) {
+            if (seconds < 60) return `${seconds}秒`;
+            if (seconds < 3600) return `${Math.floor(seconds / 60)}分${seconds % 60}秒`;
+            if (seconds < 86400) return `${Math.floor(seconds / 3600)}小时${Math.floor((seconds % 3600) / 60)}分`;
+            return `${Math.floor(seconds / 86400)}天${Math.floor((seconds % 86400) / 3600)}小时`;
+        }
+
+        function playAlarm() {
+            const alarmSound = document.getElementById('alarmSound');
+            try {
+                alarmSound.currentTime = 0;
+                alarmSound.play().catch(e => console.log('警报播放失败:', e));
+            } catch (e) {
+                console.log('警报播放异常:', e);
+            }
+        }
+
+        function showMatchNotification(record) {
+            const notification = document.createElement('div');
+            const balanceBTC = (record.balance / 100000000).toFixed(8);
+            
+            notification.innerHTML = `
+                <div style="font-size: 22px; font-weight: 800; color: #00ff88; text-align: center; margin: 20px 0;">
+                    ⚡ 量子匹配成功！
+                </div>
+                <div style="font-size: 16px; text-align: center; margin-bottom: 10px; color: #8bb9ff;">
+                    地址: ${record.address.substring(0, 20)}...
+                </div>
+                <div style="font-size: 18px; color: #00ff88; text-align: center; font-weight: 800; margin-bottom: 15px;">
+                    余额: ${balanceBTC} BTC
+                </div>
+                <div style="font-size: 14px; color: #aaa; text-align: center;">
+                    助记词已自动复制到剪贴板
+                </div>
+            `;
+            
+            notification.style.cssText = `
+                position: fixed;
+                top: 30px;
+                right: 30px;
+                background: linear-gradient(135deg, rgba(20, 20, 25, 0.98) 0%, rgba(30, 30, 40, 0.98) 100%);
+                color: white;
+                padding: 30px;
+                border-radius: 16px;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(0, 255, 136, 0.2);
+                z-index: 9999;
+                max-width: 380px;
+                border: 2px solid rgba(0, 255, 136, 0.3);
+                backdrop-filter: blur(20px);
+                animation: slideInRight 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            `;
+            
+            document.body.appendChild(notification);
+            
+            navigator.clipboard.writeText(record.mnemonic).catch(e => {
+                console.log('复制失败:', e);
+            });
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOutRight 0.5s ease';
+                setTimeout(() => notification.remove(), 500);
+            }, 4000);
+        }
+
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.innerHTML = `
+                <div style="font-size: 16px; text-align: center;">
+                    ${message}
+                </div>
+            `;
+            
+            notification.style.cssText = `
+                position: fixed;
+                top: 30px;
+                right: 30px;
+                background: linear-gradient(135deg, rgba(20, 20, 25, 0.98) 0%, rgba(30, 30, 40, 0.98) 100%);
+                color: white;
+                padding: 20px 30px;
+                border-radius: 12px;
+                box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
+                z-index: 9999;
+                max-width: 350px;
+                border: 2px solid ${type === 'success' ? 'rgba(0, 255, 136, 0.3)' : 'rgba(255, 204, 0, 0.3)'};
+                backdrop-filter: blur(20px);
+                animation: slideInRight 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            `;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOutRight 0.5s ease';
+                setTimeout(() => notification.remove(), 500);
+            }, 3000);
+        }
+
+        // ==================== 工具函数 ====================
+        function showStats() {
+            const elapsedSeconds = scanStartTime ? Math.floor((Date.now() - scanStartTime) / 1000) : 0;
+            const matchRate = matchAttempts > 0 ? ((matchSuccesses / matchAttempts) * 100).toFixed(6) : 0;
+            const avgSpeed = elapsedSeconds > 0 ? (scanCounter / elapsedSeconds).toFixed(1) : 0;
+            const totalBalanceBTC = (totalMatchedBalance / 100000000).toFixed(8);
+            
+            const stats = `
+⚡ BTC量子扫描系统统计 ⚡
+
+🎯 目标地址分析:
+• 目标地址总数: ${targetAddresses.length}
+• 已检测余额: ${Object.values(targetAddressesData).filter(d => d.checked).length}/${targetAddresses.length}
+• 有余额地址: ${Object.values(targetAddressesData).filter(d => d.balance > 0).length}
+• 总BTC余额: ${Object.values(targetAddressesData).reduce((sum, d) => sum + (d.balance || 0), 0) / 100000000} BTC
+
+💰 匹配结果统计:
+• 已匹配地址: ${matchSuccesses}/${targetAddresses.length}
+• 总匹配余额: ${totalBalanceBTC} BTC
+• 匹配成功率: ${matchRate}%
+
+🚀 量子扫描统计:
+• 已生成地址: ${scanCounter}
+• 匹配尝试: ${matchAttempts}
+• 当前速度: ${Math.round(1000/generateSpeed)}个/秒
+• 平均速度: ${avgSpeed}个/秒
+• 运行时间: ${formatTime(elapsedSeconds)}
+
+📊 系统状态:
+• API状态: ${apiConnected ? '在线' : '离线'}
+• API节点: ${selectedApiIndex >= 0 ? apiOptions[selectedApiIndex].name : '未选择'}
+• 扫描状态: ${isScanning ? '运行中' : '已暂停'}
+• 扫描进度: #${scanCounter}
+            `.trim();
+            
+            alert(stats);
+        }
+
+        function exportData() {
+            if (allRecords.length === 0) {
+                alert('没有数据可导出');
+                return;
+            }
+            
+            let csv = 'ID,助记词,私钥,生成地址,匹配状态,匹配地址,匹配余额(BTC),匹配时间\n';
+            
+            allRecords.forEach(record => {
+                const escapeCSV = (str) => {
+                    if (!str) return '';
+                    str = String(str);
+                    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+                        return '"' + str.replace(/"/g, '""') + '"';
+                    }
+                    return str;
+                };
+                
+                const balanceBTC = record.balance ? (record.balance / 100000000).toFixed(8) : '0';
+                
+                csv += `${record.id},${escapeCSV(record.mnemonic)},${escapeCSV(record.privateKey)},${escapeCSV(record.address)},${record.matched ? '是' : '否'},${escapeCSV(record.matchedAddress || '')},${balanceBTC},${escapeCSV(record.timestamp)}\n`;
+            });
+            
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            
+            link.setAttribute('href', url);
+            link.setAttribute('download', `BTC量子扫描结果_${new Date().toISOString().slice(0,10)}.csv`);
+            link.style.visibility = 'hidden';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            alert(`已导出 ${allRecords.length} 条记录到CSV文件`);
+        }
+
+        // ==================== 初始化 ====================
+        window.onload = function() {
+            console.log("量子扫描系统启动...");
+            setTimeout(init, 100);
+        };
+
+        window.addEventListener('beforeunload', function(e) {
+            if (isScanning) {
+                e.preventDefault();
+                e.returnValue = 'BTC量子扫描正在进行中，确定要离开吗？';
+                return 'BTC量子扫描正在进行中，确定要离开吗？';
+            }
+        });
+        
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideInRight {
+                from { transform: translateX(100%) scale(0.9); opacity: 0; }
+                to { transform: translateX(0) scale(1); opacity: 1; }
+            }
+            @keyframes slideOutRight {
+                from { transform: translateX(0) scale(1); opacity: 1; }
+                to { transform: translateX(100%) scale(0.9); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>
